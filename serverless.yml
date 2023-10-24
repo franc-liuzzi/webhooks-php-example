@@ -1,0 +1,23 @@
+service: codemotion23-webhooks-php-example
+
+provider:
+    name: aws
+    region: eu-north-1
+    profile: fliuzzi-playground
+    versionFunctions: false
+
+plugins:
+    - ./vendor/bref/bref
+
+functions:
+    api:
+        handler: index.php
+        runtime: php-82-fpm
+        timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
+        events:
+            - httpApi: "*"
+
+package:
+    patterns:
+        - "!node_modules/**"
+        - "!tests/**"

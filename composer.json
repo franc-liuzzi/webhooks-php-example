@@ -1,0 +1,17 @@
+{
+    "name": "francesco/webhooks-php-example",
+    "autoload": {
+        "psr-4": {
+            "Francesco\\WebhooksPhpExample\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Francesco Liuzzi",
+            "email": "francesco.liuzzi@sideagroup.com"
+        }
+    ],
+    "require": {
+        "bref/bref": "^2.1"
+    }
+}
