@@ -1,41 +1,52 @@
 service: codemotion23-webhooks-php-example
 
 provider:
-    name: aws
-    region: eu-north-1
-    profile: fliuzzi-playground
-    versionFunctions: false
+  name: aws
+  region: eu-north-1
+  profile: fliuzzi-playground
+  versionFunctions: false
 
 plugins:
-    - ./vendor/bref/bref
+  - ./vendor/bref/bref
 
 functions:
-    api:
-        handler: index.php
-        runtime: php-82-fpm
-        timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
-        events:
-            - httpApi: "*"
-    
-    consumer-1:
-        handler: src/consumer-1.php
-        runtime: php-82
-        timeout: 28
-        events:
-          - eventBridge:
-                eventBus: !Ref EventBus
-                pattern:
-                    source:
-                    - webhook
-                    detail-type:
-                    - example-1
-        
+  api:
+    handler: index.php
+    runtime: php-82-fpm
+    timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
+    events:
+      - httpApi: "*"
+
+  consumer-1:
+    handler: src/consumer-1.php
+    runtime: php-82
+    timeout: 28
+    events:
+      - eventBridge:
+          eventBus: !Ref EventBus
+          pattern:
+            source:
+              - webhook
+            detail-type:
+              - example-1
+
+  consumer-2:
+    handler: src/consumer-2.php
+    runtime: php-82
+    timeout: 28
+    events:
+      - eventBridge:
+          eventBus: !Ref EventBus
+          pattern:
+            source:
+              - webhook
+            detail-type:
+              - example-2
 
 package:
-    patterns:
-        - "!node_modules/**"
-        - "!tests/**"
-
+  patterns:
+    - "!node_modules/**"
+    - "!tests/**"
 
 custom:
   resource_prefix: ${self:service}-${sls:stage}-
@@ -64,9 +75,9 @@ resources:
             PolicyDocument:
               Version: "2012-10-17"
               Statement:
-                  - Effect: Allow
-                    Action: events:PutEvents
-                    Resource: !GetAtt EventBus.Arn
+                - Effect: Allow
+                  Action: events:PutEvents
+                  Resource: !GetAtt EventBus.Arn
     HttpApiIntegrationExampleOne:
       Type: AWS::ApiGatewayV2::Integration
       Properties:
@@ -75,7 +86,7 @@ resources:
         CredentialsArn: !GetAtt ApiGwEventBusIntegrationRole.Arn
         IntegrationSubtype: EventBridge-PutEvents
         IntegrationType: AWS_PROXY
-        PayloadFormatVersion: '1.0'
+        PayloadFormatVersion: "1.0"
         RequestParameters:
           EventBusName: !Ref EventBus
           Source: webhook
@@ -89,6 +100,34 @@ resources:
         RouteKey: GET /webhook/example-1
         Target:
           Fn::Join:
-          - "/"
-          - - integrations
-            - !Ref HttpApiIntegrationExampleOne
+            - "/"
+            - - integrations
+              - !Ref HttpApiIntegrationExampleOne
+
+    HttpApiIntegrationExampleTwo:
+      Type: AWS::ApiGatewayV2::Integration
+      Properties:
+        ApiId: !Ref HttpApi
+        ConnectionType: INTERNET
+        CredentialsArn: !GetAtt ApiGwEventBusIntegrationRole.Arn
+        IntegrationSubtype: EventBridge-PutEvents
+        IntegrationType: AWS_PROXY
+        PayloadFormatVersion: "1.0"
+        RequestParameters:
+          EventBusName: !Ref EventBus
+          Source: webhook
+          DetailType: example-2
+          Detail: "$request.body"
+
+    HttpApiRouteExampleTwo:
+      Type: AWS::ApiGatewayV2::Route
+      Properties:
+        ApiId:
+          Ref: HttpApi
+        AuthorizationType: NONE
+        RouteKey: POST /webhook/example-2
+        Target:
+          Fn::Join:
+            - "/"
+            - - integrations
+              - !Ref HttpApiIntegrationExampleTwo
