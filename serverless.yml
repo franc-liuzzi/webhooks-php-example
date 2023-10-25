@@ -16,8 +16,79 @@ functions:
         timeout: 28 # in seconds (API Gateway has a timeout of 29 seconds)
         events:
             - httpApi: "*"
+    
+    consumer-1:
+        handler: src/consumer-1.php
+        runtime: php-82
+        timeout: 28
+        events:
+          - eventBridge:
+                eventBus: !Ref EventBus
+                pattern:
+                    source:
+                    - webhook
+                    detail-type:
+                    - example-1
+        
 
 package:
     patterns:
         - "!node_modules/**"
         - "!tests/**"
+
+
+custom:
+  resource_prefix: ${self:service}-${sls:stage}-
+
+resources:
+  Resources:
+    EventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: ${self:custom.resource_prefix}EventBus
+    ApiGwEventBusIntegrationRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:custom.resource_prefix}ApiGwEventBusIntRole
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: put-events
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                  - Effect: Allow
+                    Action: events:PutEvents
+                    Resource: !GetAtt EventBus.Arn
+    HttpApiIntegrationExampleOne:
+      Type: AWS::ApiGatewayV2::Integration
+      Properties:
+        ApiId: !Ref HttpApi
+        ConnectionType: INTERNET
+        CredentialsArn: !GetAtt ApiGwEventBusIntegrationRole.Arn
+        IntegrationSubtype: EventBridge-PutEvents
+        IntegrationType: AWS_PROXY
+        PayloadFormatVersion: '1.0'
+        RequestParameters:
+          EventBusName: !Ref EventBus
+          Source: webhook
+          DetailType: example-1
+          Detail: "$request.querystring.detail"
+    HttpApiRouteExampleOne:
+      Type: AWS::ApiGatewayV2::Route
+      Properties:
+        ApiId: !Ref HttpApi
+        AuthorizationType: NONE
+        RouteKey: GET /webhook/example-1
+        Target:
+          Fn::Join:
+          - "/"
+          - - integrations
+            - !Ref HttpApiIntegrationExampleOne
