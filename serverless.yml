@@ -5,6 +5,12 @@ provider:
   region: eu-north-1
   profile: fliuzzi-playground
   versionFunctions: false
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: 'sqs:SendMessage'
+          Resource: !GetAtt DlQueue.Arn
 
 plugins:
   - ./vendor/bref/bref
@@ -34,6 +40,7 @@ functions:
     handler: src/consumer-2.php
     runtime: php-82
     timeout: 28
+    onError: !GetAtt DlQueue.Arn
     events:
       - eventBridge:
           eventBus: !Ref EventBus
@@ -131,3 +138,7 @@ resources:
             - "/"
             - - integrations
               - !Ref HttpApiIntegrationExampleTwo
+    DlQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:custom.resource_prefix}DlQueue
